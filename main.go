@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
+	"log/syslog"
 	"net/smtp"
 	"os"
 	"os/signal"
@@ -37,6 +39,14 @@ func init() {
 }
 
 func main() {
+	useSyslog := flag.Bool("syslog", false, "Use syslog")
+	flag.Parse()
+	if *useSyslog {
+		logwriter, e := syslog.New(syslog.LOG_NOTICE, "cocsniffer")
+		if e == nil {
+			log.SetOutput(logwriter)
+		}
+	}
 	db, _ = sql.Open("mysql", mysqlUser+":"+mysqlPass+"@tcp("+mysqlHost+":3306)/"+mysqlDb)
 	defer db.Close()
 
@@ -69,7 +79,7 @@ func main() {
 		//fmt.Println("found one", tweet.Text)
 		if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance break")) {
 			sendEmail("johan@pixpro.net", "johan@sundell.com", "COC alert", tweet.Text)
-			fmt.Println("Email sent:", tweet.Text)
+			log.Println("Email sent:", tweet.Text)
 		}
 	}
 	demux.DM = func(dm *twitter.DirectMessage) {
@@ -79,7 +89,7 @@ func main() {
 		//fmt.Printf("%#v\n", event)
 	}
 
-	fmt.Println("Starting Stream...")
+	log.Println("Starting Stream...")
 
 	// FILTER
 	filterParams := &twitter.StreamFilterParams{
@@ -115,28 +125,28 @@ func getMembersData() {
 	var ids = make([]string, 0)
 	for _, m := range members.Items {
 		if result, err := db.Exec(queryInsertUpdateMember, m.Tag, m.Name); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		} else {
 			if id, err := result.LastInsertId(); err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			} else {
 				ids = append(ids, strconv.Itoa(int(id)))
 			}
 		}
 	}
 	db.Exec("UPDATE members SET active = 0 WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ")")
-	fmt.Println("done members func")
+	log.Println("done members func")
 }
 
 func reportError(err error) {
-	fmt.Println("Fatal error:", err)
+	log.Println("Fatal error:", err)
 	os.Exit(0)
 }
 
 func sendEmail(to, from, subject, message string) bool {
 	body := "To: " + to + "\r\nSubject: " + subject + "\r\n\r\n" + message
 	if err := smtp.SendMail("127.0.0.1:25", nil, from, []string{to}, []byte(body)); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
