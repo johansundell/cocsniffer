@@ -93,7 +93,7 @@ func main() {
 
 	// FILTER
 	filterParams := &twitter.StreamFilterParams{
-		Follow: []string{"730400376", "240359880"},
+		Follow: []string{"730400376", "240359880", "250293507"},
 		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
 		StallWarnings: twitter.Bool(true),
 	}
