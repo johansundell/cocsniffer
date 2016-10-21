@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/smtp"
 	"os"
 	"os/signal"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/johansundell/cocapi"
 )
@@ -18,13 +21,19 @@ import (
 var db *sql.DB
 var mysqlUser, mysqlPass, mysqlDb, mysqlHost string
 var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_updated, active) VALUES (?, ?, null, null, 1) ON DUPLICATE KEY UPDATE member_id=LAST_INSERT_ID(member_id), last_updated = NOW(), active = 1`
+var consumerKey, consumerSecret, accessToken, accessSecret string
 
 func init() {
 
 	mysqlDb = "cocsniffer"
-	mysqlHost = "localhost"
+	mysqlHost = os.Getenv("MYSQL_COC_HOST")
 	mysqlUser = os.Getenv("MYSQL_USER")
 	mysqlPass = os.Getenv("MYSQL_PASS")
+
+	consumerKey = os.Getenv("TWITTER_CONSKEY")
+	consumerSecret = os.Getenv("TWITTER_CONSSEC")
+	accessToken = os.Getenv("TWITTER_ACCTOK")
+	accessSecret = os.Getenv("TWITTER_ACCSEC")
 }
 
 func main() {
@@ -46,11 +55,54 @@ func main() {
 		}
 	}()
 
+	config := oauth1.NewConfig(consumerKey, consumerSecret)
+	token := oauth1.NewToken(accessToken, accessSecret)
+	// OAuth1 http.Client will automatically authorize Requests
+	httpClient := config.Client(oauth1.NoContext, token)
+
+	// Twitter client
+	client := twitter.NewClient(httpClient)
+
+	// Convenience Demux demultiplexed stream messages
+	demux := twitter.NewSwitchDemux()
+	demux.Tweet = func(tweet *twitter.Tweet) {
+		//fmt.Println("found one", tweet.Text)
+		if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance break")) {
+			sendEmail("johan@pixpro.net", "johan@sundell.com", "COC alert", tweet.Text)
+			fmt.Println("Email sent:", tweet.Text)
+		}
+	}
+	demux.DM = func(dm *twitter.DirectMessage) {
+		//fmt.Println(dm.SenderID)
+	}
+	demux.Event = func(event *twitter.Event) {
+		//fmt.Printf("%#v\n", event)
+	}
+
+	fmt.Println("Starting Stream...")
+
+	// FILTER
+	filterParams := &twitter.StreamFilterParams{
+		Follow:        []string{"730400376", "240359880"},
+		Track:         []string{"Maintenance", "Maintenance."},
+		StallWarnings: twitter.Bool(true),
+	}
+
+	stream, err := client.Streams.Filter(filterParams)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Receive messages until stopped or stream quits
+	go demux.HandleChan(stream.Messages)
+
+	// Wait for SIGINT and SIGTERM (HIT CTRL-C)
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	log.Println(<-ch)
 
 	close(quit)
+	stream.Stop()
 	fmt.Println("Bye ;)")
 }
 
@@ -77,6 +129,15 @@ func getMembersData() {
 }
 
 func reportError(err error) {
-	fmt.Println(err)
+	fmt.Println("Fatal error:", err)
 	os.Exit(0)
+}
+
+func sendEmail(to, from, subject, message string) bool {
+	body := "To: " + to + "\r\nSubject: " + subject + "\r\n\r\n" + message
+	if err := smtp.SendMail("127.0.0.1:25", nil, from, []string{to}, []byte(body)); err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
 }
