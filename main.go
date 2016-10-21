@@ -75,7 +75,8 @@ func main() {
 	// Convenience Demux demultiplexed stream messages
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		//fmt.Println("found one", tweet.Text)
+		log.Println("found one", tweet.Text)
+		log.Println(tweet.User.ID)
 		if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance")) && (tweet.User.ID == 730400376 || tweet.User.ID == 240359880) {
 			sendEmail("johan@pixpro.net", "johan@sundell.com", "COC alert", tweet.Text)
 			log.Println("Email sent:", tweet.Text)
@@ -93,7 +94,7 @@ func main() {
 	// FILTER
 	filterParams := &twitter.StreamFilterParams{
 		Follow:        []string{"730400376", "240359880"},
-		Track:         []string{"Maintenance", "Maintenance."},
+		Track:         []string{"Maintenance", "Maintenance.", "sudde"},
 		StallWarnings: twitter.Bool(true),
 	}
 
