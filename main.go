@@ -90,6 +90,7 @@ func main() {
 		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
 		StallWarnings: twitter.Bool(true),
 	}
+	var stream *twitter.Stream
 	demux.DM = func(dm *twitter.DirectMessage) {
 		//fmt.Println(dm.SenderID)
 	}
@@ -98,6 +99,7 @@ func main() {
 	}
 	demux.StreamDisconnect = func(d *twitter.StreamDisconnect) {
 		log.Println("Lost connection")
+		stream.Stop()
 		stream, err := client.Streams.Filter(filterParams)
 		if err != nil {
 			log.Fatal(err)
