@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"log/syslog"
 	"net/smtp"
@@ -113,7 +112,7 @@ func main() {
 
 	close(quit)
 	stream.Stop()
-	fmt.Println("Bye ;)")
+	log.Println("Bye ;)")
 }
 
 func getMembersData() {
