@@ -50,7 +50,7 @@ func main() {
 	defer db.Close()
 
 	getMembersData()
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(1 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
