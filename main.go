@@ -89,7 +89,7 @@ func main() {
 		//fmt.Println(dm.SenderID)
 	}
 	demux.Event = func(event *twitter.Event) {
-		//fmt.Printf("%#v\n", event)
+		log.Printf("%#v\n", event)
 	}
 
 	log.Println("Starting Stream...")
