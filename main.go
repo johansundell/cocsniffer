@@ -85,21 +85,36 @@ func main() {
 		}
 
 	}
+	filterParams := &twitter.StreamFilterParams{
+		Follow: []string{"730400376", "240359880", "250293507"},
+		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
+		StallWarnings: twitter.Bool(true),
+	}
 	demux.DM = func(dm *twitter.DirectMessage) {
 		//fmt.Println(dm.SenderID)
 	}
 	demux.Event = func(event *twitter.Event) {
 		log.Printf("%#v\n", event)
 	}
+	demux.StreamDisconnect = func(d *twitter.StreamDisconnect) {
+		log.Println("Lost connection")
+		stream, err := client.Streams.Filter(filterParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Receive messages until stopped or stream quits
+		go demux.HandleChan(stream.Messages)
+	}
 
 	log.Println("Starting Stream...")
 
 	// FILTER
-	filterParams := &twitter.StreamFilterParams{
+	/*filterParams := &twitter.StreamFilterParams{
 		Follow: []string{"730400376", "240359880", "250293507"},
 		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
 		StallWarnings: twitter.Bool(true),
-	}
+	}*/
 
 	stream, err := client.Streams.Filter(filterParams)
 	if err != nil {
