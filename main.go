@@ -76,7 +76,7 @@ func main() {
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		//fmt.Println("found one", tweet.Text)
-		if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance")) {
+		if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance")) && (tweet.User.ID == 730400376 || tweet.User.ID == 240359880) {
 			sendEmail("johan@pixpro.net", "johan@sundell.com", "COC alert", tweet.Text)
 			log.Println("Email sent:", tweet.Text)
 		}
