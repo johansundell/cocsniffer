@@ -159,8 +159,8 @@ func getMembersData() {
 }
 
 func reportError(err error) {
-	log.Println("Fatal error:", err)
-	os.Exit(0)
+	log.Println("Fatal error coc:", err)
+	//os.Exit(0)
 }
 
 func sendEmail(to, from, subject, message string) bool {
