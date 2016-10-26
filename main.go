@@ -48,7 +48,10 @@ func main() {
 	}
 	db, _ = sql.Open("mysql", mysqlUser+":"+mysqlPass+"@tcp("+mysqlHost+":3306)/"+mysqlDb)
 	defer db.Close()
-	isCocUnderUpdate = false
+	if isCocUnderUpdate {
+		isCocUnderUpdate = false
+		sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers are up again")
+	}
 	failedTries = 0
 	getMembersData()
 	ticker := time.NewTicker(1 * time.Minute)
