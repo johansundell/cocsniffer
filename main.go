@@ -48,10 +48,8 @@ func main() {
 	}
 	db, _ = sql.Open("mysql", mysqlUser+":"+mysqlPass+"@tcp("+mysqlHost+":3306)/"+mysqlDb)
 	defer db.Close()
-	if isCocUnderUpdate {
-		isCocUnderUpdate = false
-		sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers are up again")
-	}
+
+	isCocUnderUpdate = false
 	failedTries = 0
 	getMembersData()
 	ticker := time.NewTicker(1 * time.Minute)
@@ -83,7 +81,11 @@ func getMembersData() {
 		reportError(err)
 		return
 	}
-	isCocUnderUpdate = false
+
+	if isCocUnderUpdate {
+		isCocUnderUpdate = false
+		sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers are up again")
+	}
 	failedTries = 0
 
 	var ids = make([]string, 0)
@@ -119,8 +121,6 @@ func reportError(err error) {
 		log.Println("Fatal error coc:", t)
 		break
 	}
-	//log.Println("Fatal error coc:", err)
-	//os.Exit(0)
 }
 
 func sendEmail(to, from, subject, message string) bool {
