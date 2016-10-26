@@ -13,8 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dghubble/go-twitter/twitter"
-	"github.com/dghubble/oauth1"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/johansundell/cocapi"
 )
@@ -23,6 +21,8 @@ var db *sql.DB
 var mysqlUser, mysqlPass, mysqlDb, mysqlHost string
 var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_updated, active) VALUES (?, ?, null, null, 1) ON DUPLICATE KEY UPDATE member_id=LAST_INSERT_ID(member_id), last_updated = NOW(), active = 1`
 var consumerKey, consumerSecret, accessToken, accessSecret string
+var isCocUnderUpdate bool
+var failedTries int
 
 func init() {
 
@@ -48,7 +48,8 @@ func main() {
 	}
 	db, _ = sql.Open("mysql", mysqlUser+":"+mysqlPass+"@tcp("+mysqlHost+":3306)/"+mysqlDb)
 	defer db.Close()
-
+	isCocUnderUpdate = false
+	failedTries = 0
 	getMembersData()
 	ticker := time.NewTicker(1 * time.Minute)
 	quit := make(chan struct{})
@@ -64,75 +65,12 @@ func main() {
 		}
 	}()
 
-	config := oauth1.NewConfig(consumerKey, consumerSecret)
-	token := oauth1.NewToken(accessToken, accessSecret)
-	// OAuth1 http.Client will automatically authorize Requests
-	httpClient := config.Client(oauth1.NoContext, token)
-
-	// Twitter client
-	client := twitter.NewClient(httpClient)
-
-	// Convenience Demux demultiplexed stream messages
-	demux := twitter.NewSwitchDemux()
-	demux.Tweet = func(tweet *twitter.Tweet) {
-		if tweet.User.ID == 730400376 || tweet.User.ID == 250293507 {
-			log.Println("found one", tweet.Text)
-			log.Println(tweet.User.ScreenName)
-			if strings.Contains(strings.ToLower(tweet.Text), strings.ToLower("Maintenance")) {
-				sendEmail("johan@pixpro.net", "johan@sundell.com", "COC alert", tweet.Text)
-				log.Println("Email sent:", tweet.Text)
-			}
-		}
-
-	}
-	filterParams := &twitter.StreamFilterParams{
-		Follow: []string{"730400376", "240359880", "250293507"},
-		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
-		StallWarnings: twitter.Bool(true),
-	}
-	var stream *twitter.Stream
-	demux.DM = func(dm *twitter.DirectMessage) {
-		//fmt.Println(dm.SenderID)
-	}
-	demux.Event = func(event *twitter.Event) {
-		log.Printf("%#v\n", event)
-	}
-	demux.StreamDisconnect = func(d *twitter.StreamDisconnect) {
-		log.Println("Lost connection")
-		stream.Stop()
-		stream, err := client.Streams.Filter(filterParams)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Receive messages until stopped or stream quits
-		go demux.HandleChan(stream.Messages)
-	}
-
-	log.Println("Starting Stream...")
-
-	// FILTER
-	/*filterParams := &twitter.StreamFilterParams{
-		Follow: []string{"730400376", "240359880", "250293507"},
-		//Track:         []string{"Maintenance", "Maintenance.", "sudde"},
-		StallWarnings: twitter.Bool(true),
-	}*/
-
-	stream, err := client.Streams.Filter(filterParams)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Receive messages until stopped or stream quits
-	go demux.HandleChan(stream.Messages)
-
 	// Wait for SIGINT and SIGTERM (HIT CTRL-C)
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	log.Println(<-ch)
 
 	close(quit)
-	stream.Stop()
 	log.Println("Bye ;)")
 }
 
@@ -140,7 +78,10 @@ func getMembersData() {
 	members, err := cocapi.GetMemberInfo()
 	if err != nil {
 		reportError(err)
+		return
 	}
+	isCocUnderUpdate = false
+	failedTries = 0
 
 	var ids = make([]string, 0)
 	for _, m := range members.Items {
@@ -159,7 +100,23 @@ func getMembersData() {
 }
 
 func reportError(err error) {
-	log.Println("Fatal error coc:", err)
+	switch t := err.(type) {
+	case *cocapi.ServerError:
+		if t.ErrorCode == 503 {
+			failedTries++
+			if failedTries > 3 {
+				if !isCocUnderUpdate {
+					isCocUnderUpdate = true
+					sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers under update")
+				}
+			}
+		}
+		break
+	default:
+		log.Println("Fatal error coc:", t)
+		break
+	}
+	//log.Println("Fatal error coc:", err)
 	//os.Exit(0)
 }
 
