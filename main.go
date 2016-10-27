@@ -84,7 +84,7 @@ func getMembersData() {
 
 	if isCocUnderUpdate {
 		isCocUnderUpdate = false
-		sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers are up again")
+		sendEmail("johan@pixpro.net", "johan@sundell.com", "COC Alert", "Servers are up again")
 	}
 	failedTries = 0
 
@@ -112,7 +112,7 @@ func reportError(err error) {
 			if failedTries > 3 {
 				if !isCocUnderUpdate {
 					isCocUnderUpdate = true
-					sendEmail("johan@sundell.com", "johan@pixpro.net", "COC Alert", "Servers under update")
+					sendEmail("johan@pixpro.net", "johan@sundell.com", "COC Alert", "Servers under update")
 				}
 			}
 		}
