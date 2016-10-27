@@ -20,7 +20,6 @@ import (
 var db *sql.DB
 var mysqlUser, mysqlPass, mysqlDb, mysqlHost string
 var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_updated, active) VALUES (?, ?, null, null, 1) ON DUPLICATE KEY UPDATE member_id=LAST_INSERT_ID(member_id), last_updated = NOW(), active = 1`
-var consumerKey, consumerSecret, accessToken, accessSecret string
 var isCocUnderUpdate bool
 var failedTries int
 
@@ -30,11 +29,6 @@ func init() {
 	mysqlHost = os.Getenv("MYSQL_COC_HOST")
 	mysqlUser = os.Getenv("MYSQL_USER")
 	mysqlPass = os.Getenv("MYSQL_PASS")
-
-	consumerKey = os.Getenv("TWITTER_CONSKEY")
-	consumerSecret = os.Getenv("TWITTER_CONSSEC")
-	accessToken = os.Getenv("TWITTER_ACCTOK")
-	accessSecret = os.Getenv("TWITTER_ACCSEC")
 }
 
 func main() {
@@ -100,6 +94,7 @@ func getMembersData() {
 			}
 		}
 	}
+	db.Exec("UPDATE members SET exited = NOW() WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ") AND active = 1")
 	db.Exec("UPDATE members SET active = 0 WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ")")
 	log.Println("done members func")
 }
