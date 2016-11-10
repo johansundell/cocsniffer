@@ -22,6 +22,7 @@ var mysqlUser, mysqlPass, mysqlDb, mysqlHost string
 var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_updated, active) VALUES (?, ?, null, null, 1) ON DUPLICATE KEY UPDATE member_id=LAST_INSERT_ID(member_id), last_updated = NOW(), active = 1`
 var isCocUnderUpdate bool
 var failedTries int
+var emailTo, emailFrom string
 
 func init() {
 
@@ -29,6 +30,9 @@ func init() {
 	mysqlHost = os.Getenv("MYSQL_COC_HOST")
 	mysqlUser = os.Getenv("MYSQL_USER")
 	mysqlPass = os.Getenv("MYSQL_PASS")
+
+	emailTo = os.Getenv("EMAIL_TO")
+	emailFrom = os.Getenv("EMAIL_FROM")
 }
 
 func main() {
@@ -78,7 +82,7 @@ func getMembersData() {
 
 	if isCocUnderUpdate {
 		isCocUnderUpdate = false
-		sendEmail("johan@pixpro.net", "johan@sundell.com", "COC Alert", "Servers are up again")
+		sendEmail("COC Alert", "Servers are up again")
 	}
 	failedTries = 0
 
@@ -93,10 +97,19 @@ func getMembersData() {
 				ids = append(ids, strconv.Itoa(int(id)))
 			}
 		}
+		if m.Role == "member" && m.Donations >= 1000 {
+			log.Println("Found member that should be upgraded", m.Name)
+			var alerted int
+			db.QueryRow("SELECT alert_sent_donations FROM members WHERE tag = ?", m.Tag).Scan(&alerted)
+			if alerted == 0 {
+				sendEmail("Member "+m.Name+" should be upgraded", "Member "+m.Name+" should be upgraded")
+				db.Exec("UPDATE members SET alert_sent_donations = 1 WHERE tag = ?", m.Tag)
+			}
+		}
 	}
 	db.Exec("UPDATE members SET exited = NOW() WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ") AND active = 1")
 	db.Exec("UPDATE members SET active = 0 WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ")")
-	log.Println("done members func")
+	//log.Println("done members func")
 }
 
 func reportError(err error) {
@@ -107,7 +120,7 @@ func reportError(err error) {
 			if failedTries > 3 {
 				if !isCocUnderUpdate {
 					isCocUnderUpdate = true
-					sendEmail("johan@pixpro.net", "johan@sundell.com", "COC Alert", "Servers under update")
+					sendEmail("COC Alert", "Servers under update")
 				}
 			}
 		}
@@ -118,9 +131,9 @@ func reportError(err error) {
 	}
 }
 
-func sendEmail(to, from, subject, message string) bool {
-	body := "To: " + to + "\r\nSubject: " + subject + "\r\n\r\n" + message
-	if err := smtp.SendMail("127.0.0.1:25", nil, from, []string{to}, []byte(body)); err != nil {
+func sendEmail(subject, message string) bool {
+	body := "To: " + emailTo + "\r\nSubject: " + subject + "\r\n\r\n" + message
+	if err := smtp.SendMail("127.0.0.1:25", nil, emailFrom, []string{emailTo}, []byte(body)); err != nil {
 		log.Println(err)
 		return false
 	}
