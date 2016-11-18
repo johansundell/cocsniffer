@@ -23,6 +23,7 @@ var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_upd
 var isCocUnderUpdate bool
 var failedTries int
 var emailTo, emailFrom string
+var myClanTag string
 
 func init() {
 
@@ -33,6 +34,8 @@ func init() {
 
 	emailTo = os.Getenv("EMAIL_TO")
 	emailFrom = os.Getenv("EMAIL_FROM")
+
+	myClanTag = os.Getenv("COC_CLANTAG")
 }
 
 func main() {
@@ -49,14 +52,14 @@ func main() {
 
 	isCocUnderUpdate = false
 	failedTries = 0
-	getMembersData()
+	getMembersData(myClanTag)
 	ticker := time.NewTicker(1 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				getMembersData()
+				getMembersData(myClanTag)
 			case <-quit:
 				ticker.Stop()
 				return
@@ -73,11 +76,11 @@ func main() {
 	log.Println("Bye ;)")
 }
 
-func getMembersData() {
-	members, err := cocapi.GetMemberInfo()
+func getMembersData(clan string) error {
+	members, err := cocapi.GetMemberInfo(clan)
 	if err != nil {
 		reportError(err)
-		return
+		return err
 	}
 
 	if isCocUnderUpdate {
@@ -110,6 +113,7 @@ func getMembersData() {
 	db.Exec("UPDATE members SET exited = NOW() WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ") AND active = 1")
 	db.Exec("UPDATE members SET active = 0 WHERE member_id NOT IN (" + strings.Join(ids, ", ") + ")")
 	//log.Println("done members func")
+	return nil
 }
 
 func reportError(err error) {
