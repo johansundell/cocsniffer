@@ -23,7 +23,8 @@ var queryInsertUpdateMember = `INSERT INTO members (tag, name, created, last_upd
 var isCocUnderUpdate bool
 var failedTries int
 var emailTo, emailFrom string
-var myClanTag string
+var myClanTag, myKey string
+var cocClient cocapi.Client
 
 func init() {
 
@@ -36,6 +37,7 @@ func init() {
 	emailFrom = os.Getenv("EMAIL_FROM")
 
 	myClanTag = os.Getenv("COC_CLANTAG")
+	myKey = os.Getenv("COC_KEY")
 }
 
 func main() {
@@ -49,6 +51,8 @@ func main() {
 	}
 	db, _ = sql.Open("mysql", mysqlUser+":"+mysqlPass+"@tcp("+mysqlHost+":3306)/"+mysqlDb)
 	defer db.Close()
+
+	cocClient = cocapi.NewClient(myKey)
 
 	isCocUnderUpdate = false
 	failedTries = 0
@@ -77,7 +81,7 @@ func main() {
 }
 
 func getMembersData(clan string) error {
-	members, err := cocapi.GetMemberInfo(clan)
+	members, err := cocClient.GetMembers(clan)
 	if err != nil {
 		reportError(err)
 		return err
