@@ -110,6 +110,7 @@ func getPlayerInfo() error {
 func getMembersData(clan string) error {
 	members, err := cocClient.GetMembers(clan)
 	if err != nil {
+		//log.Println(err)
 		reportError(err)
 		return err
 	}
@@ -132,8 +133,9 @@ func getMembersData(clan string) error {
 				if err := db.QueryRow("SELECT current_donations FROM members WHERE member_id = ?", id).Scan(&donations); err != nil {
 					log.Println(err)
 				} else {
+					//log.Println(m.Donations, donations)
 					if m.Donations != donations {
-						if _, err := db.Exec("UPDATE members SET current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", m.Donations, id); err != nil {
+						if _, err := db.Exec("UPDATE members SET prev_donations = ?, current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", donations, m.Donations, id); err != nil {
 							log.Println(err)
 						}
 					}
