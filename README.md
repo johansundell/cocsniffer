@@ -7,3 +7,4 @@
 	EMAIL_TO: Send alert email to this adress  
 	EMAIL_FROM: From adress  
 	COC_CLANTAG: Clan tag to follow 
+	COC_KEY: Secret key from Clash of Clans API
