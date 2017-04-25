@@ -57,6 +57,7 @@ func main() {
 	isCocUnderUpdate = false
 	failedTries = 0
 	getMembersData(myClanTag)
+	//return
 	ticker := time.NewTicker(1 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
@@ -80,6 +81,32 @@ func main() {
 	log.Println("Bye ;)")
 }
 
+func getPlayerInfo() error {
+	rows, err := db.Query("SELECT tag FROM members WHERE active = 1")
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var tag string
+		err := rows.Scan(&tag)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		player, err := cocClient.GetPlayerInfo(tag)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if _, err := db.Exec("UPDATE members SET war_stars = ? WHERE tag = ?", player.WarStars, tag); err != nil {
+			log.Println(err)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return nil
+}
+
 func getMembersData(clan string) error {
 	members, err := cocClient.GetMembers(clan)
 	if err != nil {
@@ -101,6 +128,16 @@ func getMembersData(clan string) error {
 			if id, err := result.LastInsertId(); err != nil {
 				log.Println(err)
 			} else {
+				donations := 0
+				if err := db.QueryRow("SELECT current_donations FROM members WHERE member_id = ?", id).Scan(&donations); err != nil {
+					log.Println(err)
+				} else {
+					if m.Donations != donations {
+						if _, err := db.Exec("UPDATE members SET current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", m.Donations, id); err != nil {
+							log.Println(err)
+						}
+					}
+				}
 				ids = append(ids, strconv.Itoa(int(id)))
 			}
 		}
