@@ -58,7 +58,7 @@ func main() {
 	failedTries = 0
 	getMembersData(myClanTag)
 	//return
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	quit := make(chan struct{})
 	go func() {
 		for {
@@ -137,6 +137,11 @@ func getMembersData(clan string) error {
 					if m.Donations != donations {
 						if _, err := db.Exec("UPDATE members SET prev_donations = ?, current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", donations, m.Donations, id); err != nil {
 							log.Println(err)
+						}
+						if m.Donations > donations {
+							if _, err := db.Exec("INSERT donations (member_id, ts, current_donations, prev_donations) VALUES (?, NOW(), ?, ?)", id, m.Donations, donations); err != nil {
+								log.Println(err)
+							}
 						}
 					}
 				}
