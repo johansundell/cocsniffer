@@ -131,18 +131,27 @@ func getMembersData(clan string) error {
 			} else {
 				donations := 0
 				if err := db.QueryRow("SELECT current_donations FROM members WHERE member_id = ?", id).Scan(&donations); err != nil {
-					log.Println(err)
-				} else {
-					//log.Println(m.Donations, donations)
-					if m.Donations != donations {
-						if _, err := db.Exec("UPDATE members SET prev_donations = ?, current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", donations, m.Donations, id); err != nil {
-							log.Println(err)
-						}
-						if m.Donations > donations {
-							if _, err := db.Exec("INSERT donations (member_id, ts, current_donations, prev_donations) VALUES (?, NOW(), ?, ?)", id, m.Donations, donations); err != nil {
-								log.Println(err)
-							}
-						}
+					//log.Println(err, "no 1")
+				}
+				//log.Println(m.Donations, donations)
+				if m.Donations != donations && m.Donations != 0 {
+					/*if _, err := db.Exec("UPDATE members SET prev_donations = ?, current_donations = ?, last_donation_time = NOW() WHERE member_id = ?", donations, m.Donations, id); err != nil {
+						log.Println(err, "no 2")
+					}*/
+					//if m.Donations > donations {
+					if _, err := db.Exec("INSERT donations (member_id, ts, current_donations, prev_donations) VALUES (?, NOW(), ?, ?)", id, m.Donations, donations); err != nil {
+						log.Println(err, "no 3")
+					}
+					//}
+				}
+
+				received := 0
+				if err := db.QueryRow("SELECT current FROM receive WHERE member_id = ?", id).Scan(&received); err != nil {
+					//log.Println(err, "no 4", m.Name, id, m.DonationsReceived)
+				}
+				if m.DonationsReceived != received && m.DonationsReceived != 0 {
+					if _, err := db.Exec("INSERT receive (member_id, ts, current, prev) VALUES ( ?, NOW(), ?, ? )", id, m.DonationsReceived, donations); err != nil {
+						log.Println(err)
 					}
 				}
 				ids = append(ids, strconv.Itoa(int(id)))
