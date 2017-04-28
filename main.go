@@ -153,7 +153,7 @@ func getMembersData(clan string) error {
 					if _, err := db.Exec("UPDATE members SET current_rec = ? WHERE member_id = ?", m.DonationsReceived, id); err != nil {
 						log.Println(err)
 					}
-					if _, err := db.Exec("INSERT receive (member_id, ts, current, prev) VALUES ( ?, NOW(), ?, ? )", id, m.DonationsReceived, donations); err != nil {
+					if _, err := db.Exec("INSERT receive (member_id, ts, current, prev) VALUES ( ?, NOW(), ?, ? )", id, m.DonationsReceived, received); err != nil {
 						log.Println(err)
 					}
 				}
